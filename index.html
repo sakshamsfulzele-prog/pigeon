@@ -82,6 +82,9 @@
         .insta-note{font-size:.6rem;color:var(--muted);letter-spacing:.08em;margin-top:8px;text-align:center;line-height:1.6;}
         .insta-note span{color:var(--accent);}
 
+        /* VISITOR LOGO */
+        .visitor-logo{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-bottom:24px;border:3px solid var(--accent);animation:floatLogo 6s ease-in-out infinite;box-shadow:0 0 24px var(--accent-glow);}
+
         /* DASHBOARD */
         #dashboard{background:#ede7d9;color:#1a1712;}
         .dash-header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,0.08);background:#ede7d9;flex-shrink:0;}
@@ -108,7 +111,6 @@
         .inbox-list::-webkit-scrollbar{width:2px;}
         .inbox-list::-webkit-scrollbar-thumb{background:#d5ccba;}
 
-        /* INBOX ITEM — clickable */
         .inbox-item{padding:14px 16px;background:#ffffff;border-radius:14px;border:1px solid rgba(0,0,0,0.07);display:flex;align-items:flex-start;gap:12px;transition:var(--tr);animation:fadeUp .3s cubic-bezier(.22,1,.36,1) both;cursor:pointer;}
         .inbox-item:hover{background:#f0e8d8;transform:translateX(3px);border-color:var(--accent);}
         .inbox-avatar{width:38px;height:38px;border-radius:50%;background:rgba(110,181,255,0.15);border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:var(--accent);flex-shrink:0;font-family:var(--font-m);}
@@ -125,7 +127,6 @@
 
         /* VISITOR SETUP */
         #v-setup .scroll-inner{justify-content:center;}
-        .setup-icon{font-size:3.5rem;margin-bottom:20px;animation:floatLogo 4s ease-in-out infinite;filter:drop-shadow(0 0 20px var(--accent-glow));}
         .setup-label{font-size:.6rem;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:8px;}
         .setup-title{font-family:var(--font-s);font-size:2.2rem;font-weight:300;color:var(--text);margin-bottom:6px;}
         .setup-who{font-size:.72rem;color:var(--muted);}
@@ -194,8 +195,7 @@
         <div class="scroll-inner">
             <div class="logo-wrap">
                 <div class="logo-ring">
-                    <img src="logo.jpg.jpeg" class="logo-img" alt="Pigeon"
-                         onerror="this.src='https://cdn-icons-png.flaticon.com/512/739/739249.png'">
+                    <img class="logo-img" id="main-logo" alt="Pigeon">
                 </div>
             </div>
             <h1 class="home-title">Pigeon</h1>
@@ -221,7 +221,6 @@
             </div>
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
-
         <div class="link-card">
             <div class="link-label">✦ Your Secret Link</div>
             <div class="link-value" id="dash-link">—</div>
@@ -229,12 +228,10 @@
                 <button class="link-btn copy" onclick="copyLink()">Copy Link</button>
             </div>
         </div>
-
         <div class="inbox-header">
             <div class="inbox-title">Inbox</div>
             <div class="inbox-count" id="inbox-count">0 chats</div>
         </div>
-
         <div class="inbox-list" id="inbox-list">
             <div class="inbox-empty">
                 <div class="inbox-empty-icon">🕊️</div>
@@ -246,13 +243,13 @@
     <!-- VISITOR SETUP -->
     <div id="v-setup" class="screen">
         <div class="scroll-inner">
-            <div class="setup-icon">🕊️</div>
+            <img class="visitor-logo" id="visitor-logo" alt="Pigeon">
             <div class="setup-label">Anonymous Entry</div>
             <h2 class="setup-title">Join Chat</h2>
             <p class="setup-who" id="v-text">Talking to <span>@unknown</span></p>
             <div class="field-group">
                 <input type="text" id="alias-in" class="field" placeholder="choose a secret alias..." autocomplete="off">
-                <button class="btn" onclick="startVisitorChat()">Enter Anonymously ✈️</button>
+                <button class="btn" onclick="startVisitorChat()">Enter Anonymously</button>
             </div>
         </div>
     </div>
@@ -291,11 +288,28 @@
 <script>
 const socket      = io();
 const params      = new URLSearchParams(window.location.search);
-const visitorRoom = params.get('user');  // owner's username from URL
+const visitorRoom = params.get('user');
 let currentUser   = '';
 let myAlias       = '';
-let currentOwner  = '';  // whose room we're chatting in
-let currentAlias  = '';  // which alias thread (for owner replying)
+let currentOwner  = '';
+let currentAlias  = '';
+
+/* ── LOGO — try jpg then jpeg then fallback ── */
+function loadLogo(imgEl) {
+    const tries = ['logo.jpg', 'logo.jpeg', 'logo.jpg.jpeg', 'logo.png'];
+    let i = 0;
+    function tryNext() {
+        if (i >= tries.length) {
+            imgEl.src = 'https://cdn-icons-png.flaticon.com/512/739/739249.png';
+            return;
+        }
+        imgEl.src = tries[i++];
+        imgEl.onerror = tryNext;
+    }
+    tryNext();
+}
+loadLogo(document.getElementById('main-logo'));
+loadLogo(document.getElementById('visitor-logo'));
 
 /* ── SCREEN ROUTER ── */
 function showScreen(id) {
@@ -331,7 +345,7 @@ function askNotifPermission() {
 function pushNotif(alias, message) {
     if ('Notification' in window && Notification.permission === 'granted') {
         if (!document.hasFocus() || !document.getElementById('chat').classList.contains('active'))
-            new Notification('🕊️ ' + alias + ' on Pigeon', { body: message, icon: 'logo.jpg.jpeg' });
+            new Notification('🕊️ ' + alias + ' on Pigeon', { body: message });
     }
 }
 
@@ -383,9 +397,7 @@ function renderInbox(threads) {
     const list  = document.getElementById('inbox-list');
     const count = document.getElementById('inbox-count');
     count.textContent = threads.length + ' chat' + (threads.length !== 1 ? 's' : '');
-
     if (threads.length === 0) { list.innerHTML = emptyInboxHTML(); return; }
-
     list.innerHTML = '';
     threads.forEach(({ alias, lastMsg, count: msgCount }, i) => {
         const item = document.createElement('div');
@@ -410,12 +422,11 @@ function emptyInboxHTML() {
     return '<div class="inbox-empty"><div class="inbox-empty-icon">🕊️</div><div class="inbox-empty-text">No messages yet.<br>Share your link and wait for secrets.</div></div>';
 }
 
-/* ── OWNER OPENS A SPECIFIC THREAD ── */
+/* ── OWNER OPENS THREAD ── */
 function openThreadAsOwner(alias) {
-    myAlias      = currentUser;   // owner replies as their username
+    myAlias      = currentUser;
     currentOwner = currentUser;
     currentAlias = alias;
-
     document.getElementById('chat-room-name').textContent = alias + ' → you';
     document.getElementById('chat-my-alias').textContent  = 'replying as @' + currentUser;
     clearChat();
@@ -430,7 +441,6 @@ function startVisitorChat() {
     myAlias      = a;
     currentOwner = visitorRoom;
     currentAlias = a;
-
     document.getElementById('chat-room-name').textContent = '@' + visitorRoom;
     document.getElementById('chat-my-alias').textContent  = 'as ' + myAlias;
     clearChat();
@@ -440,12 +450,8 @@ function startVisitorChat() {
 
 /* ── LEAVE CHAT ── */
 function leaveChat() {
-    if (visitorRoom) {
-        showScreen('v-setup');
-    } else {
-        showScreen('dashboard');
-        socket.emit('getInbox', currentUser);
-    }
+    if (visitorRoom) { showScreen('v-setup'); }
+    else { showScreen('dashboard'); socket.emit('getInbox', currentUser); }
 }
 
 /* ── SEND ── */
@@ -453,12 +459,7 @@ function send() {
     const input = document.getElementById('msg-in');
     const text  = input.value.trim();
     if (!text) return;
-    socket.emit('sendMessage', {
-        owner:    currentOwner,
-        alias:    currentAlias,
-        message:  text,
-        senderId: myAlias
-    });
+    socket.emit('sendMessage', { owner: currentOwner, alias: currentAlias, message: text, senderId: myAlias });
     input.value = ''; input.focus();
 }
 
@@ -473,7 +474,7 @@ socket.on('newNotification', (c) => {
     pushNotif(c.alias, c.message);
     if (document.getElementById('dashboard').classList.contains('active'))
         socket.emit('getInbox', currentUser);
-    toast('New message from ' + c.alias + '! 🕊️');
+    toast('New message from ' + c.alias + '!');
 });
 
 /* ── DISPLAY ── */
