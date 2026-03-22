@@ -8,76 +8,96 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
-// ── In-memory storage ──────────────────────────────
-const pigeonRooms = {};   // roomCode → [ ...messages ]
-const pigeonUsers = {};   // username → { username, createdAt }
-const ownerSockets = {};  // username → socketId  (for push notifications)
+// roomCode → [ ...messages ]
+const pigeonRooms = {};
+// ownerUsername → Set of senderAliases
+const pigeonInbox = {};
+// ownerUsername → socketId
+const ownerSockets = {};
+
 const MAX_MSGS = 500;
-// ──────────────────────────────────────────────────
+
+// Room name = "owner__alias" for private 1-on-1
+function roomKey(owner, alias) {
+    return `${owner}__${alias}`;
+}
 
 io.on('connection', (socket) => {
 
-    // ── LOGIN (username only, no password) ─────────
+    // LOGIN
     socket.on('loginUser', (username) => {
         username = username.trim().toLowerCase();
-        if (!pigeonUsers[username]) {
-            pigeonUsers[username] = { username, createdAt: Date.now() };
-        }
-        if (!pigeonRooms[username]) {
-            pigeonRooms[username] = [];
-        }
+        if (!pigeonInbox[username]) pigeonInbox[username] = {};
         ownerSockets[username] = socket.id;
         socket.emit('loginSuccess', { username });
     });
 
-    // ── INBOX: owner fetches all messages ──────────
+    // GET INBOX — returns list of { alias, lastMsg, count }
     socket.on('getInbox', (username) => {
-        const msgs = pigeonRooms[username] || [];
-        socket.emit('inboxData', msgs);
+        const inbox = pigeonInbox[username] || {};
+        const result = Object.entries(inbox).map(([alias, msgs]) => ({
+            alias,
+            lastMsg: msgs[msgs.length - 1],
+            count: msgs.length
+        }));
+        // Sort by latest message time
+        result.sort((a, b) => (b.lastMsg.ts || 0) - (a.lastMsg.ts || 0));
+        socket.emit('inboxData', result);
     });
 
-    // ── JOIN ROOM ──────────────────────────────────
-    // data = { roomCode, isOwner, ownerUsername }
-    socket.on('joinRoom', (data) => {
-        const { roomCode, isOwner, ownerUsername } = data;
-        socket.join(roomCode);
+    // JOIN ROOM
+    // data = { owner, alias, isOwner }
+    socket.on('joinRoom', ({ owner, alias, isOwner }) => {
+        const key = roomKey(owner, alias);
+        socket.join(key);
+
         if (isOwner) {
-            socket.join('owner:' + roomCode);
-            ownerSockets[ownerUsername] = socket.id;
+            ownerSockets[owner] = socket.id;
         }
-        if (!pigeonRooms[roomCode]) pigeonRooms[roomCode] = [];
-        socket.emit('loadChats', pigeonRooms[roomCode]);
+
+        if (!pigeonRooms[key]) pigeonRooms[key] = [];
+        socket.emit('loadChats', pigeonRooms[key]);
     });
 
-    // ── SEND MESSAGE ───────────────────────────────
-    socket.on('sendMessage', ({ roomCode, message, senderId }) => {
+    // SEND MESSAGE
+    socket.on('sendMessage', ({ owner, alias, message, senderId }) => {
+        const key = roomKey(owner, alias);
+        const now = Date.now();
+
         const chatData = {
             message,
             senderId,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            ts: now,
+            time: new Date(now).toLocaleTimeString('en-IN', {
+                hour: '2-digit', minute: '2-digit',
+                timeZone: 'Asia/Kolkata'
+            })
         };
 
-        if (!pigeonRooms[roomCode]) pigeonRooms[roomCode] = [];
+        // Store in room
+        if (!pigeonRooms[key]) pigeonRooms[key] = [];
+        if (pigeonRooms[key].length >= MAX_MSGS) pigeonRooms[key].shift();
+        pigeonRooms[key].push(chatData);
 
-        // 500 message cap — drop oldest
-        if (pigeonRooms[roomCode].length >= MAX_MSGS) {
-            pigeonRooms[roomCode].shift();
-        }
+        // Store in inbox (owner's inbox, grouped by alias)
+        if (!pigeonInbox[owner]) pigeonInbox[owner] = {};
+        if (!pigeonInbox[owner][alias]) pigeonInbox[owner][alias] = [];
+        if (pigeonInbox[owner][alias].length >= MAX_MSGS) pigeonInbox[owner][alias].shift();
+        pigeonInbox[owner][alias].push(chatData);
 
-        pigeonRooms[roomCode].push(chatData);
-        io.to(roomCode).emit('receiveMessage', chatData);
+        // Broadcast to room
+        io.to(key).emit('receiveMessage', chatData);
 
-        // Push notification to owner if they're NOT in chat
-        const ownerSocketId = ownerSockets[roomCode];
-        if (ownerSocketId) {
-            io.to(ownerSocketId).emit('newNotification', chatData);
+        // Notify owner if not in this chat
+        const ownerSid = ownerSockets[owner];
+        if (ownerSid) {
+            io.to(ownerSid).emit('newNotification', { alias, ...chatData });
         }
     });
 
-    // ── DISCONNECT ─────────────────────────────────
     socket.on('disconnect', () => {
-        for (const [user, sid] of Object.entries(ownerSockets)) {
-            if (sid === socket.id) delete ownerSockets[user];
+        for (const [u, sid] of Object.entries(ownerSockets)) {
+            if (sid === socket.id) delete ownerSockets[u];
         }
     });
 });
