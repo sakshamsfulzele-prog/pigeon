@@ -39,7 +39,6 @@
                 box-shadow:0 0 0 1px rgba(255,255,255,0.03),0 40px 80px rgba(0,0,0,0.6),0 0 60px var(--accent-glow);}
         }
 
-        /* TOP BAR */
         .topbar{height:52px;padding:0 18px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:var(--surface);z-index:10;}
         .topbar-brand{font-size:.65rem;font-weight:500;letter-spacing:.25em;color:var(--accent);text-transform:uppercase;}
         .topbar-controls{display:flex;align-items:center;gap:8px;}
@@ -48,7 +47,6 @@
         .color-dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);background:var(--accent);cursor:pointer;overflow:hidden;position:relative;flex-shrink:0;}
         .color-dot input[type="color"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
 
-        /* SCREENS */
         .screen{flex:1;display:none;flex-direction:column;overflow:hidden;animation:fadeUp .4s cubic-bezier(.22,1,.36,1) both;}
         .screen.active{display:flex;}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
@@ -57,7 +55,6 @@
         .scroll-inner::-webkit-scrollbar{width:2px;}
         .scroll-inner::-webkit-scrollbar-thumb{background:var(--dim);}
 
-        /* FORM */
         .field-group{width:100%;display:flex;flex-direction:column;gap:10px;margin-top:24px;}
         .field{width:100%;padding:14px 20px;background:var(--bg);border:1px solid var(--border);border-radius:14px;color:var(--text);font-family:var(--font-m);font-size:.82rem;letter-spacing:.05em;outline:none;transition:var(--tr);text-align:center;}
         .field::placeholder{color:var(--muted);}
@@ -82,7 +79,6 @@
         .insta-note{font-size:.6rem;color:var(--muted);letter-spacing:.08em;margin-top:8px;text-align:center;line-height:1.6;}
         .insta-note span{color:var(--accent);}
 
-        /* VISITOR LOGO */
         .visitor-logo{width:90px;height:90px;border-radius:50%;object-fit:cover;margin-bottom:24px;border:3px solid var(--accent);animation:floatLogo 6s ease-in-out infinite;box-shadow:0 0 24px var(--accent-glow);}
 
         /* DASHBOARD */
@@ -111,15 +107,22 @@
         .inbox-list::-webkit-scrollbar{width:2px;}
         .inbox-list::-webkit-scrollbar-thumb{background:#d5ccba;}
 
-        .inbox-item{padding:14px 16px;background:#ffffff;border-radius:14px;border:1px solid rgba(0,0,0,0.07);display:flex;align-items:flex-start;gap:12px;transition:var(--tr);animation:fadeUp .3s cubic-bezier(.22,1,.36,1) both;cursor:pointer;}
-        .inbox-item:hover{background:#f0e8d8;transform:translateX(3px);border-color:var(--accent);}
+        /* INBOX ITEM with delete */
+        .inbox-item{padding:12px 14px;background:#ffffff;border-radius:14px;border:1px solid rgba(0,0,0,0.07);display:flex;align-items:center;gap:10px;transition:var(--tr);animation:fadeUp .3s cubic-bezier(.22,1,.36,1) both;}
+        .inbox-item:hover{background:#f0e8d8;border-color:rgba(110,181,255,0.4);}
+        .inbox-clickable{display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer;}
         .inbox-avatar{width:38px;height:38px;border-radius:50%;background:rgba(110,181,255,0.15);border:1.5px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:700;color:var(--accent);flex-shrink:0;font-family:var(--font-m);}
         .inbox-body{flex:1;min-width:0;}
-        .inbox-sender{font-size:.75rem;font-weight:500;color:#1a1712;letter-spacing:.05em;margin-bottom:3px;}
-        .inbox-preview{font-size:.72rem;color:#8a8070;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
+        .inbox-sender{font-size:.75rem;font-weight:500;color:#1a1712;letter-spacing:.05em;margin-bottom:2px;}
+        .inbox-preview{font-size:.7rem;color:#8a8070;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.4;}
         .inbox-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
         .inbox-time{font-size:.58rem;color:#8a8070;letter-spacing:.05em;}
         .inbox-badge{width:18px;height:18px;border-radius:50%;background:var(--accent);color:#0a0b0f;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;}
+
+        /* DELETE BUTTON */
+        .del-btn{width:28px;height:28px;border-radius:50%;border:1px solid rgba(192,57,43,0.2);background:rgba(192,57,43,0.06);color:#c0392b;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--tr);opacity:0;}
+        .inbox-item:hover .del-btn{opacity:1;}
+        .del-btn:hover{background:rgba(192,57,43,0.15);border-color:#c0392b;transform:scale(1.1);}
 
         .inbox-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 20px;}
         .inbox-empty-icon{font-size:2.5rem;opacity:.25;}
@@ -294,15 +297,12 @@ let myAlias       = '';
 let currentOwner  = '';
 let currentAlias  = '';
 
-/* ── LOGO — try jpg then jpeg then fallback ── */
+/* ── LOGO ── */
 function loadLogo(imgEl) {
     const tries = ['logo.jpg', 'logo.jpeg', 'logo.jpg.jpeg', 'logo.png'];
     let i = 0;
     function tryNext() {
-        if (i >= tries.length) {
-            imgEl.src = 'https://cdn-icons-png.flaticon.com/512/739/739249.png';
-            return;
-        }
+        if (i >= tries.length) { imgEl.src = 'https://cdn-icons-png.flaticon.com/512/739/739249.png'; return; }
         imgEl.src = tries[i++];
         imgEl.onerror = tryNext;
     }
@@ -343,10 +343,9 @@ function askNotifPermission() {
         Notification.requestPermission();
 }
 function pushNotif(alias, message) {
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if ('Notification' in window && Notification.permission === 'granted')
         if (!document.hasFocus() || !document.getElementById('chat').classList.contains('active'))
             new Notification('🕊️ ' + alias + ' on Pigeon', { body: message });
-    }
 }
 
 /* ── INIT ── */
@@ -403,23 +402,32 @@ function renderInbox(threads) {
         const item = document.createElement('div');
         item.className = 'inbox-item';
         item.style.animationDelay = (i * 0.05) + 's';
-        item.onclick = () => openThreadAsOwner(alias);
         item.innerHTML =
-            '<div class="inbox-avatar">' + escHtml(alias[0].toUpperCase()) + '</div>' +
-            '<div class="inbox-body">' +
-                '<div class="inbox-sender">' + escHtml(alias) + '</div>' +
-                '<div class="inbox-preview">' + escHtml(lastMsg.message) + '</div>' +
+            '<div class="inbox-clickable" onclick="openThreadAsOwner(\'' + escJs(alias) + '\')">' +
+                '<div class="inbox-avatar">' + escHtml(alias[0].toUpperCase()) + '</div>' +
+                '<div class="inbox-body">' +
+                    '<div class="inbox-sender">' + escHtml(alias) + '</div>' +
+                    '<div class="inbox-preview">' + escHtml(lastMsg.message) + '</div>' +
+                '</div>' +
+                '<div class="inbox-meta">' +
+                    '<div class="inbox-time">' + (lastMsg.time || '') + '</div>' +
+                    (msgCount > 1 ? '<div class="inbox-badge">' + (msgCount > 99 ? '99+' : msgCount) + '</div>' : '') +
+                '</div>' +
             '</div>' +
-            '<div class="inbox-meta">' +
-                '<div class="inbox-time">' + (lastMsg.time || '') + '</div>' +
-                (msgCount > 1 ? '<div class="inbox-badge">' + (msgCount > 99 ? '99+' : msgCount) + '</div>' : '') +
-            '</div>';
+            '<button class="del-btn" title="Delete chat" onclick="deleteThread(\'' + escJs(alias) + '\')">✕</button>';
         list.appendChild(item);
     });
 }
 
 function emptyInboxHTML() {
     return '<div class="inbox-empty"><div class="inbox-empty-icon">🕊️</div><div class="inbox-empty-text">No messages yet.<br>Share your link and wait for secrets.</div></div>';
+}
+
+/* ── DELETE THREAD ── */
+function deleteThread(alias) {
+    if (!confirm('Delete chat with "' + alias + '"? This cannot be undone.')) return;
+    socket.emit('deleteThread', { owner: currentUser, alias: alias });
+    toast('Chat deleted ✕');
 }
 
 /* ── OWNER OPENS THREAD ── */
@@ -438,9 +446,7 @@ function openThreadAsOwner(alias) {
 function startVisitorChat() {
     const a = document.getElementById('alias-in').value.trim();
     if (!a) { toast('Choose an alias first!'); return; }
-    myAlias      = a;
-    currentOwner = visitorRoom;
-    currentAlias = a;
+    myAlias = a; currentOwner = visitorRoom; currentAlias = a;
     document.getElementById('chat-room-name').textContent = '@' + visitorRoom;
     document.getElementById('chat-my-alias').textContent  = 'as ' + myAlias;
     clearChat();
@@ -507,6 +513,9 @@ function legacyCopy(t) { const i = document.createElement('input'); document.bod
 /* ── UTILS ── */
 function escHtml(s) {
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escJs(s) {
+    return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
 }
 let _tt;
 function toast(msg) {
